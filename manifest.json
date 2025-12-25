@@ -1,0 +1,17 @@
+
+{
+  "short_name": "NurHub",
+  "name": "Nur Prayer Hub",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/2881/2881023.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#065f46",
+  "background_color": "#f8fafc"
+}
