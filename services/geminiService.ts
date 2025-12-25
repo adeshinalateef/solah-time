@@ -1,5 +1,5 @@
 
-// Gemini/AI integration removed. This file provides a small local stub for content used in the flyer.
+// Local content stub providing static reminders/announcements/verses.
 
 export const generateCommunityContent = async (_masjidName: string, _date: string) => {
   return {
