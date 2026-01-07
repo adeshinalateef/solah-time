@@ -2,13 +2,18 @@
 import React, { useState, useRef } from 'react';
 import { Download, Upload, Calendar, Clock, User } from 'lucide-react';
 
+type PrayerEntry = {
+  adhan: string;
+  iqamah: string;
+};
+
 type Times = {
-  Fajr: string;
+  Fajr: PrayerEntry;
   Sunrise: string;
-  Dhuhr: string;
-  Asr: string;
-  Maghrib: string;
-  Isha: string;
+  Dhuhr: PrayerEntry;
+  Asr: PrayerEntry;
+  Maghrib: PrayerEntry;
+  Isha: PrayerEntry;
 };
 
 export default function App(): JSX.Element {
@@ -16,7 +21,14 @@ export default function App(): JSX.Element {
   const [uploaderName, setUploaderName] = useState<string>('');
   const [uploaderPhone, setUploaderPhone] = useState<string>('');
   const [date, setDate] = useState<string>(new Date().toISOString().split('T')[0]);
-  const [times, setTimes] = useState<Times>({ Fajr: '', Sunrise: '', Dhuhr: '', Asr: '', Maghrib: '', Isha: '' });
+  const [times, setTimes] = useState<Times>({
+    Fajr: { adhan: '', iqamah: '' },
+    Sunrise: '',
+    Dhuhr: { adhan: '', iqamah: '' },
+    Asr: { adhan: '', iqamah: '' },
+    Maghrib: { adhan: '', iqamah: '' },
+    Isha: { adhan: '', iqamah: '' }
+  });
   const [lastUpdated, setLastUpdated] = useState<string>('');
   const [location, setLocation] = useState<string>('');
   const flyerRef = useRef<HTMLDivElement | null>(null);
@@ -33,8 +45,19 @@ export default function App(): JSX.Element {
     }
   };
 
-  const handleTimeChange = (salat: keyof Times, value: string) => {
-    setTimes(prev => ({ ...prev, [salat]: value } as Times));
+  const handleTimeChange = (salat: keyof Times, type: 'adhan' | 'iqamah' | 'single', value: string) => {
+    setTimes(prev => {
+      if (salat === 'Sunrise') {
+        return { ...prev, Sunrise: value };
+      }
+      return {
+        ...prev,
+        [salat]: {
+          ...(prev[salat] as PrayerEntry),
+          [type]: value
+        }
+      };
+    });
   };
 
   const downloadFlyer = async () => {
@@ -46,7 +69,7 @@ export default function App(): JSX.Element {
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
       if (!ctx) throw new Error('Unable to get canvas context');
-      
+
       // Set dimensions for WhatsApp-friendly size
       const width = 1080;
       const height = 1350;
@@ -81,7 +104,7 @@ export default function App(): JSX.Element {
             const x = (width - logoSize) / 2;
             ctx.save();
             ctx.beginPath();
-            ctx.arc(x + logoSize/2, y + logoSize/2, logoSize/2, 0, Math.PI * 2);
+            ctx.arc(x + logoSize / 2, y + logoSize / 2, logoSize / 2, 0, Math.PI * 2);
             ctx.closePath();
             ctx.clip();
             ctx.drawImage(img, x, y, logoSize, logoSize);
@@ -129,13 +152,22 @@ export default function App(): JSX.Element {
       y += 80;
 
       // Prayer times
-      const prayers = [
-        { name: 'Fajr', arabic: 'الفجر', time: times.Fajr },
-        { name: 'Sunrise', arabic: 'الشروق', time: times.Sunrise },
-        { name: 'Dhuhr', arabic: 'الظهر', time: times.Dhuhr },
-        { name: 'Asr', arabic: 'العصر', time: times.Asr },
-        { name: 'Maghrib', arabic: 'المغرب', time: times.Maghrib },
-        { name: 'Isha', arabic: 'العشاء', time: times.Isha }
+      interface PrayerItem {
+        name: string;
+        arabic: string;
+        isSunrise?: boolean;
+        time?: string;
+        adhan?: string;
+        iqamah?: string;
+      }
+
+      const prayers: PrayerItem[] = [
+        { name: 'Fajr', arabic: 'الفجر', ...(times.Fajr as PrayerEntry) },
+        { name: 'Sunrise', arabic: 'الشروق', time: times.Sunrise, isSunrise: true },
+        { name: 'Dhuhr', arabic: 'الظهر', ...(times.Dhuhr as PrayerEntry) },
+        { name: 'Asr', arabic: 'العصر', ...(times.Asr as PrayerEntry) },
+        { name: 'Maghrib', arabic: 'المغرب', ...(times.Maghrib as PrayerEntry) },
+        { name: 'Isha', arabic: 'العشاء', ...(times.Isha as PrayerEntry) }
       ];
 
       const boxWidth = width - 140;
@@ -143,11 +175,13 @@ export default function App(): JSX.Element {
       const boxX = 70;
 
       prayers.forEach((prayer) => {
-        if (prayer.time) {
+        const hasTime = prayer.isSunrise ? prayer.time : (prayer.adhan || prayer.iqamah);
+
+        if (hasTime) {
           // Box background
           ctx.fillStyle = 'rgba(255, 255, 255, 0.12)';
           ctx.fillRect(boxX, y - 52, boxWidth, boxHeight);
-          
+
           // Box border
           ctx.strokeStyle = '#fbbf24';
           ctx.lineWidth = 1;
@@ -166,10 +200,32 @@ export default function App(): JSX.Element {
           ctx.fillText(prayer.arabic, boxX + boxWidth - 25, y);
 
           // Time - center
-          ctx.fillStyle = '#fcd34d';
-          ctx.font = 'bold 40px Arial';
           ctx.textAlign = 'center';
-          ctx.fillText(prayer.time, width / 2, y);
+
+          if (prayer.isSunrise) {
+            ctx.fillStyle = '#fcd34d';
+            ctx.font = 'bold 40px Arial';
+            ctx.fillText(prayer.time || '', width / 2, y);
+          } else {
+            if (prayer.adhan && prayer.iqamah) {
+              // Labels
+              ctx.fillStyle = '#fbbf24';
+              ctx.font = '12px Arial';
+              ctx.fillText('ADHAN', width / 2 - 60, y - 32);
+              ctx.fillText('IQAMAH', width / 2 + 60, y - 32);
+
+              // Times
+              ctx.fillStyle = '#fcd34d';
+              ctx.font = 'bold 32px Arial';
+              ctx.fillText(prayer.adhan, width / 2 - 60, y);
+              ctx.fillText(prayer.iqamah, width / 2 + 60, y);
+            } else {
+              const t = prayer.adhan || prayer.iqamah || '';
+              ctx.fillStyle = '#fcd34d';
+              ctx.font = 'bold 40px Arial';
+              ctx.fillText(t, width / 2, y);
+            }
+          }
 
           y += 90;
         }
@@ -177,7 +233,7 @@ export default function App(): JSX.Element {
 
       // Quranic verse section
       y += 30;
-      
+
       // Verse box
       ctx.fillStyle = 'rgba(251, 191, 36, 0.1)';
       ctx.fillRect(60, y - 20, width - 120, 170);
@@ -189,11 +245,11 @@ export default function App(): JSX.Element {
       ctx.fillStyle = '#fcd34d';
       ctx.font = 'bold 28px Arial';
       ctx.textAlign = 'center';
-      
+
       // Split Arabic text into lines
       const arabicLine1 = 'إِنَّ ٱلصَّلَوٰةَ كَانَتْ عَلَى';
       const arabicLine2 = 'ٱلْمُؤْمِنِينَ كِتَٰبًا مَّوْقُوتًا';
-      
+
       ctx.fillText(arabicLine1, width / 2, y + 10);
       ctx.fillText(arabicLine2, width / 2, y + 45);
 
@@ -202,7 +258,7 @@ export default function App(): JSX.Element {
       ctx.font = '22px Arial';
       const engLine1 = '"Indeed, prayer has been decreed upon';
       const engLine2 = 'the believers at specific times."';
-      
+
       ctx.fillText(engLine1, width / 2, y + 85);
       ctx.fillText(engLine2, width / 2, y + 112);
 
@@ -213,7 +269,7 @@ export default function App(): JSX.Element {
 
       // Footer section
       y = height - 140;
-      
+
       // Footer box
       ctx.fillStyle = 'rgba(251, 191, 36, 0.15)';
       ctx.fillRect(50, y - 10, width - 100, 110);
@@ -228,7 +284,7 @@ export default function App(): JSX.Element {
       // Watermark (soft large location in background)
       if (location) {
         ctx.save();
-        ctx.translate(width/2, height/2);
+        ctx.translate(width / 2, height / 2);
         ctx.rotate(-0.35);
         ctx.globalAlpha = 0.06;
         ctx.fillStyle = '#ffffff';
@@ -285,7 +341,7 @@ export default function App(): JSX.Element {
         {/* Input Form */}
         <div className="bg-white rounded-xl shadow-2xl p-8 mb-6">
           <h2 className="text-2xl font-bold text-emerald-900 mb-6 border-b pb-3">Enter Prayer Details</h2>
-          
+
           {/* Logo Upload */}
           <div className="mb-6">
             <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -379,17 +435,47 @@ export default function App(): JSX.Element {
               Prayer Times *
             </label>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {Object.keys(times).map((salat) => (
-                <div key={salat} className="bg-emerald-50 rounded-lg p-3">
-                  <label className="block text-xs font-medium text-emerald-800 mb-1">{salat}</label>
-                  <input
-                    type="time"
-                    value={times[salat]}
-                    onChange={(e) => handleTimeChange(salat as keyof Times, e.target.value)}
-                    className="w-full px-3 py-2 border-2 border-emerald-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-                  />
-                </div>
-              ))}
+              {(Object.keys(times) as Array<keyof Times>).map((salat) => {
+                if (salat === 'Sunrise') {
+                  return (
+                    <div key={salat} className="bg-emerald-50 rounded-lg p-3">
+                      <label className="block text-xs font-medium text-emerald-800 mb-1">{salat}</label>
+                      <input
+                        type="time"
+                        value={times.Sunrise}
+                        onChange={(e) => handleTimeChange('Sunrise', 'single', e.target.value)}
+                        className="w-full px-3 py-2 border-2 border-emerald-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                      />
+                    </div>
+                  );
+                }
+                const entry = times[salat] as PrayerEntry;
+                return (
+                  <div key={salat} className="bg-emerald-50 rounded-lg p-3">
+                    <label className="block text-xs font-medium text-emerald-800 mb-1">{salat}</label>
+                    <div className="flex gap-2">
+                      <div className="flex-1">
+                        <label className="block text-[10px] text-emerald-600 mb-0.5">Adhan</label>
+                        <input
+                          type="time"
+                          value={entry.adhan}
+                          onChange={(e) => handleTimeChange(salat, 'adhan', e.target.value)}
+                          className="w-full px-2 py-2 border-2 border-emerald-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm"
+                        />
+                      </div>
+                      <div className="flex-1">
+                        <label className="block text-[10px] text-emerald-600 mb-0.5">Iqamah</label>
+                        <input
+                          type="time"
+                          value={entry.iqamah}
+                          onChange={(e) => handleTimeChange(salat, 'iqamah', e.target.value)}
+                          className="w-full px-2 py-2 border-2 border-emerald-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
 
@@ -421,7 +507,7 @@ export default function App(): JSX.Element {
         {/* Preview */}
         <div className="bg-white rounded-xl shadow-2xl p-6">
           <h2 className="text-xl font-bold text-emerald-900 mb-4">Live Preview</h2>
-          <div 
+          <div
             ref={flyerRef}
             className="bg-gradient-to-br from-emerald-800 to-emerald-950 rounded-lg p-8 text-white border-4 border-amber-400"
           >
@@ -430,28 +516,54 @@ export default function App(): JSX.Element {
                 <img src={logo} alt="Logo" className="w-24 h-24 object-contain rounded-full border-4 border-amber-400" />
               </div>
             )}
-            
+
             <div className="text-center mb-6">
               <h3 className="text-4xl font-bold mb-2">أوقات الصلاة</h3>
               <h3 className="text-3xl font-bold mb-4">PRAYER TIMES</h3>
               {location && <p className="text-xl text-amber-300 font-semibold mb-2">{location.toUpperCase()}</p>}
               <p className="text-lg text-amber-200">
-                {new Date(date).toLocaleDateString('en-GB', { 
-                  weekday: 'long', 
+                {new Date(date).toLocaleDateString('en-GB', {
+                  weekday: 'long',
                   day: 'numeric',
-                  month: 'long', 
-                  year: 'numeric' 
+                  month: 'long',
+                  year: 'numeric'
                 })}
               </p>
             </div>
 
             <div className="space-y-3 mb-6">
-              {Object.entries(times).map(([salat, time]) => time && (
-                <div key={salat} className="bg-white bg-opacity-10 backdrop-blur rounded-lg p-4 flex justify-between items-center border border-amber-400">
-                  <span className="font-bold text-lg">{salat}</span>
-                  <span className="text-2xl font-bold text-amber-300">{time}</span>
-                </div>
-              ))}
+              {(Object.keys(times) as Array<keyof Times>).map((salat) => {
+                if (salat === 'Sunrise') {
+                  if (!times.Sunrise) return null;
+                  return (
+                    <div key={salat} className="bg-white bg-opacity-10 backdrop-blur rounded-lg p-4 flex justify-between items-center border border-amber-400">
+                      <span className="font-bold text-lg">{salat}</span>
+                      <span className="text-2xl font-bold text-amber-300">{times.Sunrise}</span>
+                    </div>
+                  );
+                }
+                const entry = times[salat] as PrayerEntry;
+                if (!entry.adhan && !entry.iqamah) return null;
+                return (
+                  <div key={salat} className="bg-white bg-opacity-10 backdrop-blur rounded-lg p-3 flex items-center border border-amber-400">
+                    <span className="font-bold text-lg w-24">{salat}</span>
+                    <div className="flex-1 flex justify-around">
+                      {entry.adhan && (
+                        <div className="text-center">
+                          <span className="block text-xs text-amber-200 uppercase tracking-wider">Adhan</span>
+                          <span className="text-xl font-bold text-amber-300">{entry.adhan}</span>
+                        </div>
+                      )}
+                      {entry.iqamah && (
+                        <div className="text-center">
+                          <span className="block text-xs text-amber-200 uppercase tracking-wider">Iqamah</span>
+                          <span className="text-xl font-bold text-amber-300">{entry.iqamah}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
 
             {/* Quranic Verse */}
@@ -476,5 +588,6 @@ export default function App(): JSX.Element {
           </div>
         </div>
       </div>
-    </div>
-  );}
+    </div >
+  );
+}
