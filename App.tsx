@@ -163,7 +163,7 @@ export default function App(): JSX.Element {
 
       const prayers: PrayerItem[] = [
         { name: 'Fajr', arabic: 'الفجر', ...(times.Fajr as PrayerEntry) },
-        { name: 'Sunrise', arabic: 'الشروق', time: times.Sunrise, isSunrise: true },
+        { name: 'Ash-Shuru q', arabic: 'الشروق', time: times.Sunrise, isSunrise: true },
         { name: 'Dhuhr', arabic: 'الظهر', ...(times.Dhuhr as PrayerEntry) },
         { name: 'Asr', arabic: 'العصر', ...(times.Asr as PrayerEntry) },
         { name: 'Maghrib', arabic: 'المغرب', ...(times.Maghrib as PrayerEntry) },
@@ -537,7 +537,7 @@ export default function App(): JSX.Element {
                   if (!times.Sunrise) return null;
                   return (
                     <div key={salat} className="bg-white bg-opacity-10 backdrop-blur rounded-lg p-4 flex justify-between items-center border border-amber-400">
-                      <span className="font-bold text-lg">{salat}</span>
+                      <span className="font-bold text-lg">Ash-Shuru q</span>
                       <span className="text-2xl font-bold text-amber-300">{times.Sunrise}</span>
                     </div>
                   );
